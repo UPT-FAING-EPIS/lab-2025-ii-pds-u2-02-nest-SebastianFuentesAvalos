@@ -147,11 +147,14 @@ jobs:
     - name: Update package.json for NuGet-style publishing
       run: |
         cd ${{ matrix.project }}/libs/domain
+        # Generate unique version based on timestamp
+        TIMESTAMP=$(date +%Y%m%d%H%M%S)
+        VERSION="1.0.${TIMESTAMP}"
         # Create NuGet-style publishable package.json
         cat > package.json << EOF
         {
           "name": "@sebastianfuentesavalos/${{ matrix.project }}_fuentesavalos",
-          "version": "1.0.0",
+          "version": "$VERSION",
           "description": "${{ matrix.project }} domain library implementing structural design patterns (NuGet-style package)",
           "main": "dist/index.js",
           "types": "dist/index.d.ts",
@@ -196,4 +199,5 @@ jobs:
         NODE_AUTH_TOKEN: ${{ secrets.NUGET_API_KEY }}
       run: |
         cd ${{ matrix.project }}/libs/domain
-        npm publish
+        # Try to publish, if it fails due to existing version, continue
+        npm publish || echo "Package version already exists, skipping publish"

@@ -1,0 +1,199 @@
+name: Test, Analysis and Package (NuGet Style)
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '20'
+  # NuGet-style package management configuration
+  NUGET_PACKAGE_SOURCE: 'https://npm.pkg.github.com'
+  
+jobs:
+  test-notifications:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Shallow clones should be disabled for better analysis
+
+    - name: Setup Node.js with NuGet-style registry
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: notifications/package.json
+        registry-url: ${{ env.NUGET_PACKAGE_SOURCE }}
+
+    - name: Install dependencies (NuGet style)
+      run: |
+        cd notifications
+        npm ci
+
+    - name: Run unit tests with coverage and JUnit report
+      run: |
+        cd notifications
+        npm run test:cov -- --reporters=default --reporters=jest-junit
+
+    - name: Run e2e tests
+      run: |
+        cd notifications
+        npm run test:e2e
+
+    - name: Upload notifications test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: notifications-test-results
+        path: |
+          notifications/coverage/
+          notifications/junit.xml
+
+    - name: SonarCloud Scan for Notifications
+      uses: SonarSource/sonarqube-scan-action@v5.0.0
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      with:
+        projectBaseDir: notifications
+        args: >
+          -Dsonar.projectKey=sebastianfuentesavalos_lab-2025-ii-pds-u2-02-nest-sebastianfuentesavalos
+          -Dsonar.organization=sebastianfuentesavalos
+          -Dsonar.sources=libs/domain/src,src
+          -Dsonar.tests=libs/domain/src,test
+          -Dsonar.test.inclusions=**/*.spec.ts,**/*.test.ts
+          -Dsonar.exclusions=**/*.js,node_modules/**,dist/**,coverage/**
+          -Dsonar.typescript.lcov.reportPaths=coverage/lcov.info
+          -Dsonar.projectName=Notifications-SebastianFuentes
+
+  test-customer-app:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup Node.js with NuGet-style registry
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: customer-app/package.json
+        registry-url: ${{ env.NUGET_PACKAGE_SOURCE }}
+
+    - name: Install dependencies (NuGet style)
+      run: |
+        cd customer-app
+        npm ci
+
+    - name: Run unit tests with coverage and JUnit report
+      run: |
+        cd customer-app
+        npm run test:cov -- --reporters=default --reporters=jest-junit
+
+    - name: Run e2e tests
+      run: |
+        cd customer-app
+        npm run test:e2e
+
+    - name: Upload customer-app test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: customer-app-test-results
+        path: |
+          customer-app/coverage/
+          customer-app/junit.xml
+
+  build-and-publish-nuget:
+    if: github.ref_name == 'main'
+    needs: [test-notifications, test-customer-app]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        project: [notifications, customer-app]
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js for NuGet-style packaging
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        registry-url: ${{ env.NUGET_PACKAGE_SOURCE }}
+        scope: '@sebastianfuentesavalos'
+
+    - name: Install dependencies for ${{ matrix.project }} (NuGet style)
+      run: |
+        cd ${{ matrix.project }}
+        npm ci
+
+    - name: Build domain library for ${{ matrix.project }}
+      run: |
+        cd ${{ matrix.project }}/libs/domain
+        npm run build
+
+    - name: Configure npm for NuGet-style GitHub Packages
+      run: |
+        echo "@sebastianfuentesavalos:registry=${{ env.NUGET_PACKAGE_SOURCE }}" > $GITHUB_WORKSPACE/.npmrc
+
+    - name: Update package.json for NuGet-style publishing
+      run: |
+        cd ${{ matrix.project }}/libs/domain
+        # Create NuGet-style publishable package.json
+        cat > package.json << EOF
+        {
+          "name": "@sebastianfuentesavalos/${{ matrix.project }}_fuentesavalos",
+          "version": "1.0.0",
+          "description": "${{ matrix.project }} domain library implementing structural design patterns (NuGet-style package)",
+          "main": "dist/index.js",
+          "types": "dist/index.d.ts",
+          "files": [
+            "dist/**/*",
+            "src/**/*"
+          ],
+          "scripts": {
+            "build": "tsc -p tsconfig.lib.json"
+          },
+          "keywords": [
+            "nestjs",
+            "typescript",
+            "design-patterns",
+            "${{ matrix.project }}",
+            "sebastian-fuentes",
+            "nuget-style"
+          ],
+          "author": "Sebastian Fuentes Avalos",
+          "license": "MIT",
+          "repository": {
+            "type": "git",
+            "url": "https://github.com/UPT-FAING-EPIS/lab-2025-ii-pds-u2-02-nest-SebastianFuentesAvalos.git"
+          },
+          "publishConfig": {
+            "registry": "${{ env.NUGET_PACKAGE_SOURCE }}/@sebastianfuentesavalos"
+          },
+          "dependencies": {
+            "@nestjs/common": "^11.0.1",
+            "reflect-metadata": "^0.2.2",
+            "rxjs": "^7.8.1"
+          },
+          "devDependencies": {
+            "@types/node": "^22.10.7",
+            "typescript": "^5.6.3"
+          }
+        }
+        EOF
+
+    - name: Publish ${{ matrix.project }} package to GitHub Packages (NuGet-style)
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NUGET_API_KEY }}
+      run: |
+        cd ${{ matrix.project }}/libs/domain
+        npm publish

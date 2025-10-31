@@ -1,0 +1,198 @@
+name: Create Release Version
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 1.0.0)'
+        required: true
+        default: '1.0.0'
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+
+    - name: Install dependencies for notifications
+      run: |
+        cd notifications
+        npm ci
+
+    - name: Install dependencies for customer-app
+      run: |
+        cd customer-app
+        npm ci
+
+    - name: Run tests for notifications
+      run: |
+        cd notifications
+        npm run test:cov
+
+    - name: Run tests for customer-app
+      run: |
+        cd customer-app
+        npm run test:cov
+
+    - name: Build notifications domain library
+      run: |
+        cd notifications/libs/domain
+        npm run build
+
+    - name: Build customer-app domain library
+      run: |
+        cd customer-app/libs/domain
+        npm run build
+
+    - name: Get version
+      id: get_version
+      run: |
+        if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+          echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+        else
+          echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Update package versions
+      run: |
+        cd notifications/libs/domain
+        npm version ${{ steps.get_version.outputs.VERSION }} --no-git-tag-version
+        cd ../../customer-app/libs/domain
+        npm version ${{ steps.get_version.outputs.VERSION }} --no-git-tag-version
+
+    - name: Create distribution packages
+      run: |
+        # Create packages for notifications
+        cd notifications/libs/domain
+        tar -czf ../../notifications_fuentesavalos-${{ steps.get_version.outputs.VERSION }}.tar.gz .
+        zip -r ../../notifications_fuentesavalos-${{ steps.get_version.outputs.VERSION }}.zip .
+        
+        # Create packages for customer-app
+        cd ../../../customer-app/libs/domain
+        tar -czf ../../customer-app_fuentesavalos-${{ steps.get_version.outputs.VERSION }}.tar.gz .
+        zip -r ../../customer-app_fuentesavalos-${{ steps.get_version.outputs.VERSION }}.zip .
+
+    - name: Generate changelog
+      id: changelog
+      run: |
+        # Generate a simple changelog from commit messages
+        CHANGELOG=$(git log --pretty=format:"- %s (%h)" --since="$(git tag --sort=-creatordate | head -2 | tail -1 || echo '1 month ago')" --no-merges)
+        echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
+        echo "$CHANGELOG" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v${{ steps.get_version.outputs.VERSION }}
+        release_name: PDS Structural Patterns v${{ steps.get_version.outputs.VERSION }}
+        body: |
+          # Lab PDS U2-02 - Patrones Estructurales v${{ steps.get_version.outputs.VERSION }}
+          
+          ## 🚀 Features
+          
+          ### 📧 Notifications (Bridge Pattern)
+          - Implementación del patrón Bridge para sistema de notificaciones
+          - Soporte para envío via SMS y Email
+          - Abstracción entre tipos de mensaje (Short/Long) y canales de envío
+          - Documentación completa con JSDoc
+          
+          ### 👤 Customer App (Facade Pattern)
+          - Implementación del patrón Facade para registro de clientes
+          - Validación integrada de datos de cliente
+          - Almacenamiento en capa de datos
+          - Servicio de notificación por email
+          - Cobertura de pruebas unitarias
+          
+          ## 📋 Changes
+          ${{ steps.changelog.outputs.CHANGELOG }}
+          
+          ## 📦 Package Information
+          
+          ### Notifications Package
+          - Package Name: `notifications_fuentesavalos`
+          - Version: `${{ steps.get_version.outputs.VERSION }}`
+          - Pattern: Bridge Design Pattern
+          
+          ### Customer App Package
+          - Package Name: `customer-app_fuentesavalos`
+          - Version: `${{ steps.get_version.outputs.VERSION }}`
+          - Pattern: Facade Design Pattern
+          
+          - Author: Sebastian Fuentes Avalos
+          - Course: Patrones de Diseño de Software - UPT
+          
+          ## 🛠️ Installation
+          ```bash
+          # Notifications package
+          npm install @sebastianfuentesavalos/notifications_fuentesavalos@${{ steps.get_version.outputs.VERSION }}
+          
+          # Customer App package
+          npm install @sebastianfuentesavalos/customer-app_fuentesavalos@${{ steps.get_version.outputs.VERSION }}
+          ```
+          
+          ## 📚 Documentation
+          - Bridge Pattern Implementation: Notifications module
+          - Facade Pattern Implementation: Customer App module
+          - Full API Documentation available in GitHub Pages
+        draft: false
+        prerelease: false
+
+    - name: Upload Notifications TAR.GZ Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./notifications/notifications_fuentesavalos-${{ steps.get_version.outputs.VERSION }}.tar.gz
+        asset_name: notifications_fuentesavalos-${{ steps.get_version.outputs.VERSION }}.tar.gz
+        asset_content_type: application/gzip
+
+    - name: Upload Notifications ZIP Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./notifications/notifications_fuentesavalos-${{ steps.get_version.outputs.VERSION }}.zip
+        asset_name: notifications_fuentesavalos-${{ steps.get_version.outputs.VERSION }}.zip
+        asset_content_type: application/zip
+
+    - name: Upload Customer-App TAR.GZ Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./customer-app/customer-app_fuentesavalos-${{ steps.get_version.outputs.VERSION }}.tar.gz
+        asset_name: customer-app_fuentesavalos-${{ steps.get_version.outputs.VERSION }}.tar.gz
+        asset_content_type: application/gzip
+
+    - name: Upload Customer-App ZIP Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./customer-app/customer-app_fuentesavalos-${{ steps.get_version.outputs.VERSION }}.zip
+        asset_name: customer-app_fuentesavalos-${{ steps.get_version.outputs.VERSION }}.zip
+        asset_content_type: application/zip

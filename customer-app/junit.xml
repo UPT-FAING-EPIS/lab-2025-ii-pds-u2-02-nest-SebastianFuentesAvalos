@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="jest tests" tests="7" failures="0" errors="0" time="0.356">
+  <testsuite name="GivenANewCustomer_WhenRegister_ThenIsValidatedSavedEmailedSuccessfully" errors="0" failures="0" skipped="0" timestamp="2025-10-31T03:44:57" time="0.145" tests="7">
+    <testcase classname="GivenANewCustomer_WhenRegister_ThenIsValidatedSavedEmailedSuccessfully Customer should be defined" name="GivenANewCustomer_WhenRegister_ThenIsValidatedSavedEmailedSuccessfully Customer should be defined" time="0.002">
+    </testcase>
+    <testcase classname="GivenANewCustomer_WhenRegister_ThenIsValidatedSavedEmailedSuccessfully Customer should be valid" name="GivenANewCustomer_WhenRegister_ThenIsValidatedSavedEmailedSuccessfully Customer should be valid" time="0.001">
+    </testcase>
+    <testcase classname="GivenANewCustomer_WhenRegister_ThenIsValidatedSavedEmailedSuccessfully Customer should be saved" name="GivenANewCustomer_WhenRegister_ThenIsValidatedSavedEmailedSuccessfully Customer should be saved" time="0.001">
+    </testcase>
+    <testcase classname="GivenANewCustomer_WhenRegister_ThenIsValidatedSavedEmailedSuccessfully Customer should be add" name="GivenANewCustomer_WhenRegister_ThenIsValidatedSavedEmailedSuccessfully Customer should be add" time="0.001">
+    </testcase>
+    <testcase classname="GivenANewCustomer_WhenRegister_ThenIsValidatedSavedEmailedSuccessfully Customer should be notified" name="GivenANewCustomer_WhenRegister_ThenIsValidatedSavedEmailedSuccessfully Customer should be notified" time="0.001">
+    </testcase>
+    <testcase classname="GivenANewCustomer_WhenRegister_ThenIsRegisteredSuccessfully Customer should be defined" name="GivenANewCustomer_WhenRegister_ThenIsRegisteredSuccessfully Customer should be defined" time="0">
+    </testcase>
+    <testcase classname="GivenANewCustomer_WhenRegister_ThenIsRegisteredSuccessfully Customer should be registered" name="GivenANewCustomer_WhenRegister_ThenIsRegisteredSuccessfully Customer should be registered" time="0">
+    </testcase>
+  </testsuite>
+</testsuites>

@@ -1,0 +1,192 @@
+name: Publish Documentation
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build-docs:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Install dependencies for notifications
+      run: |
+        cd notifications
+        npm ci
+
+    - name: Install dependencies for customer-app
+      run: |
+        cd customer-app
+        npm ci
+
+    - name: Install Compodoc globally
+      run: npm install -g @compodoc/compodoc
+
+    - name: Clean and create documentation folders
+      run: |
+        mkdir -p documentation/notifications
+        mkdir -p documentation/customer-app
+        rm -rf documentation/notifications/* || true
+        rm -rf documentation/customer-app/* || true
+
+    - name: Generate notifications documentation
+      run: |
+        cd notifications
+        compodoc -p tsconfig.json -d ../documentation/notifications --theme laravel --name "Notifications Domain Documentation - Sebastian Fuentes Avalos"
+
+    - name: Generate customer-app documentation
+      run: |
+        cd customer-app
+        compodoc -p tsconfig.json -d ../documentation/customer-app --theme laravel --name "Customer App Domain Documentation - Sebastian Fuentes Avalos"
+
+    - name: Create main documentation index
+      run: |
+        cat > documentation/index.html << 'EOF'
+        <!DOCTYPE html>
+        <html lang="es">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Lab PDS U2-02 - Documentación</title>
+            <style>
+                body {
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    margin: 0;
+                    padding: 40px;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    min-height: 100vh;
+                }
+                .container {
+                    max-width: 800px;
+                    margin: 0 auto;
+                    background: white;
+                    border-radius: 15px;
+                    padding: 40px;
+                    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+                }
+                h1 {
+                    color: #333;
+                    text-align: center;
+                    margin-bottom: 10px;
+                    font-size: 2.5em;
+                }
+                .subtitle {
+                    text-align: center;
+                    color: #666;
+                    margin-bottom: 40px;
+                    font-size: 1.1em;
+                }
+                .project-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                    gap: 30px;
+                    margin-top: 40px;
+                }
+                .project-card {
+                    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+                    padding: 30px;
+                    border-radius: 12px;
+                    text-align: center;
+                    color: white;
+                    text-decoration: none;
+                    transition: all 0.3s ease;
+                    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+                }
+                .project-card:hover {
+                    transform: translateY(-5px);
+                    box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+                    text-decoration: none;
+                    color: white;
+                }
+                .project-card h3 {
+                    margin-top: 0;
+                    font-size: 1.5em;
+                }
+                .project-card p {
+                    margin-bottom: 20px;
+                    opacity: 0.9;
+                }
+                .notifications-card {
+                    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+                }
+                .customer-card {
+                    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+                }
+                .author {
+                    text-align: center;
+                    margin-top: 40px;
+                    padding-top: 20px;
+                    border-top: 1px solid #eee;
+                    color: #666;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>Lab PDS U2-02</h1>
+                <p class="subtitle">Patrones de Diseño Estructurales - Bridge & Facade</p>
+                
+                <div class="project-grid">
+                    <a href="./notifications/index.html" class="project-card notifications-card">
+                        <h3>📧 Notifications</h3>
+                        <p>Implementación del patrón Bridge para sistema de notificaciones con múltiples canales de envío.</p>
+                        <span>Ver Documentación →</span>
+                    </a>
+                    
+                    <a href="./customer-app/index.html" class="project-card customer-card">
+                        <h3>👤 Customer App</h3>
+                        <p>Implementación del patrón Facade para simplificar el registro de clientes con validación y notificación.</p>
+                        <span>Ver Documentación →</span>
+                    </a>
+                </div>
+                
+                <div class="author">
+                    <p><strong>Autor:</strong> Sebastian Fuentes Avalos</p>
+                    <p><strong>Curso:</strong> Patrones de Diseño de Software</p>
+                    <p><strong>Fecha:</strong> Octubre 2025</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        EOF
+
+    - name: Setup Pages
+      uses: actions/configure-pages@v4
+
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: './documentation'
+
+  deploy-docs:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build-docs
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

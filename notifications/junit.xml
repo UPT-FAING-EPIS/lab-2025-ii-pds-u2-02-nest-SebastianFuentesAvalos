@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="jest tests" tests="5" failures="0" errors="0" time="0.367">
+  <testsuite name="GivenLongMessage_WhenSend_ThenEmailIsTriggered" errors="0" failures="0" skipped="0" timestamp="2025-10-31T03:44:52" time="0.152" tests="5">
+    <testcase classname="GivenLongMessage_WhenSend_ThenEmailIsTriggered Long Messsage should be not null" name="GivenLongMessage_WhenSend_ThenEmailIsTriggered Long Messsage should be not null" time="0.002">
+    </testcase>
+    <testcase classname="GivenLongMessage_WhenSend_ThenEmailIsTriggered Long Messsage should contains characters more than 0" name="GivenLongMessage_WhenSend_ThenEmailIsTriggered Long Messsage should contains characters more than 0" time="0">
+    </testcase>
+    <testcase classname="GivenShortMessage_WhenSend_ThenSMSIsTriggered Short Messsage should be not null" name="GivenShortMessage_WhenSend_ThenSMSIsTriggered Short Messsage should be not null" time="0.001">
+    </testcase>
+    <testcase classname="GivenShortMessage_WhenSend_ThenSMSIsTriggered Short Messsage should contains characters more than 0" name="GivenShortMessage_WhenSend_ThenSMSIsTriggered Short Messsage should contains characters more than 0" time="0.001">
+    </testcase>
+    <testcase classname="GivenLargeMessage_WhenSendinSMS_ThenOccursException Large Messsage in SMS should be an error" name="GivenLargeMessage_WhenSendinSMS_ThenOccursException Large Messsage in SMS should be an error" time="0.006">
+    </testcase>
+  </testsuite>
+</testsuites>
